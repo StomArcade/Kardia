@@ -4,6 +4,9 @@ import net.bitbylogic.kardia.Kardia;
 import net.bitbylogic.kardia.command.Command;
 import net.bitbylogic.kardia.command.CommandSender;
 import net.bitbylogic.kardia.docker.DockerPackage;
+import net.bitbylogic.kardia.server.KardiaServer;
+
+import java.util.List;
 
 public class ReloadPackageCommand extends Command {
 
@@ -11,7 +14,7 @@ public class ReloadPackageCommand extends Command {
         super(
                 "reloadpackage",
                 "Reloads a package.",
-                "reloadpackage <string:name> <boolean:build_images>",
+                "reloadpackage <string:name> <boolean:build_images> <boolean:stop_containers>",
                 null
         );
     }
@@ -21,6 +24,7 @@ public class ReloadPackageCommand extends Command {
         if(args.length >= 2) {
             try {
                 boolean buildImages = Boolean.parseBoolean(args[1]);
+                boolean stopContainers = Boolean.parseBoolean(args[2]);
                 sender.sendMessage("Invalidating current package data for " + args[0] + ".");
                 Kardia.network().packageCache().invalidate(args[0]);
 
@@ -32,8 +36,31 @@ public class ReloadPackageCommand extends Command {
                     DockerPackage dockerPackage = Kardia.network().getPackage(args[0]);
 
                     if(dockerPackage != null) {
-                        sender.sendMessage("Building image for package.");
-                        Kardia.network().createImage(dockerPackage).thenAccept(_ -> sender.sendMessage("Finished building images."));
+                        sender.sendMessage("Building image for package" + args[0] + ".");
+
+                        if (!stopContainers) {
+                            return;
+                        }
+
+                        sender.sendMessage("Stopping all running containers for package " + args[0] + ".");
+
+                        Kardia.network().createImage(dockerPackage).thenAccept(_ -> {
+                            sender.sendMessage("Finished building images.");
+
+                            List<KardiaServer> servers = Kardia.network().getServersByInstance(args[0]);
+
+                            for (KardiaServer server : servers) {
+                                sender.sendMessage("Sending request to stop server " + server.kardiaId() + ". You will be notified when it is stopped.");
+
+                                Kardia.network().stopServer(server).thenAccept(completed -> {
+                                    if(completed) {
+                                        sender.sendMessage("Successfully stopped server " + server.kardiaId() + "!");
+                                    } else {
+                                        sender.sendError("Could not stop server " + server.kardiaId() + "! Perhaps it is already stopped?");
+                                    }
+                                });
+                            }
+                        });
                     } else {
                         sender.sendWarning("Seems like the package is invalid.");
                     }
@@ -42,7 +69,7 @@ public class ReloadPackageCommand extends Command {
                 sender.sendError(e.getMessage());
             }
         } else {
-            sender.sendError("Please specify the name of the package and whether to build images.");
+            sender.sendError("Please specify the name of the package and whether to build images and stop running containers.");
         }
     }
 }
