@@ -5,6 +5,7 @@ import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.bitbylogic.kardia.server.KardiaServer;
 import net.bitbylogic.kardiavelocity.KardiaVelocity;
+import net.bitbylogic.kardiavelocity.util.message.MessageUtil;
 import net.kyori.adventure.text.Component;
 
 public class ServerKickListener {
@@ -23,12 +24,8 @@ public class ServerKickListener {
                 }
             }
 
-            e.getPlayer().sendMessage(Component.text("§cYou were kicked from " +
-                    server.getName() + " for: "));
-
             e.getServerKickReason().ifPresent(component -> e.getPlayer().sendMessage(component));
-
-            e.setResult(KickedFromServerEvent.Notify.create(Component.text("gg")));
+            e.setResult(KickedFromServerEvent.Notify.create(MessageUtil.error("Unable to connect to server.")));
         }
     }
 }
