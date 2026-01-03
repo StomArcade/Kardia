@@ -1,0 +1,30 @@
+# The configuration for the redis connection.
+Redis:
+  Host: localhost
+  Port: 6379
+  Password: "password"
+  Identifier: "kardia"
+
+# Settings related to kardia servers.
+Server:
+  IP: "localhost"
+  # The default configuration for the mysql connection for Kardia Servers.
+  # Packages can define their own SQL details, but this will be the fallback.
+  SQL:
+    Host: "host.docker.internal"
+    Port: 3306
+    Database: "test"
+    Username: "root"
+    Password: "password"
+  # The default configuration for the redis connection for Kardia Servers.
+  # Packages can define their own Redis details, but this will be the fallback.
+  Redis:
+    Host: "host.docker.internal"
+    Port: 6379
+    Password: "password"
+    Identifier: "kardia"
+
+# The port range used when creating kardia servers.
+Port-Range:
+  Min: 27000
+  Max: 30000

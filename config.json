@@ -1,0 +1,5 @@
+{
+  "ip": "localhost",
+  "portRangeMin": 27000,
+  "portRangeMax": 30000
+}
