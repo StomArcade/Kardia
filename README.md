@@ -10,6 +10,12 @@ APIs, configuration formats, and internal behavior may change without notice.
 **A server lifecycle manager built with Docker and Redis for Minecraft networks**  
 Integrates with Velocity and provides automated server orchestration and state management.
 
+--- 
+
+Shoutout to [Sulaxan](https://github.com/Sulaxan) for creating the original implementation of this system for an old network we worked on together!
+
+Checkout the original implementation [here](https://github.com/BitByLogics/Aero-Network-Core/tree/master/NetworkCore).
+
 ---
 
 ## 🚀 What is Kardia?
