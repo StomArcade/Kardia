@@ -60,12 +60,7 @@ public class NetworkManager {
         String dockerHost = System.getenv("DOCKER_HOST");
 
         if (dockerHost == null) {
-            this.httpClient = null;
-            this.dockerClient = null;
-
-            Kardia.LOGGER.error("No Docker host found. Shutting down...");
-            System.exit(1);
-            return;
+            dockerHost = Kardia.config().getString("Docker.Host", "tcp://localhost:2375");
         }
 
         DockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder()
