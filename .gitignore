@@ -8,8 +8,8 @@ build/
 **/src/main/resources/loot_tables/
 packages/
 resources/
-config.json
-config.yml
+./config.json
+./config.yml
 
 ### IntelliJ IDEA ###
 .idea
