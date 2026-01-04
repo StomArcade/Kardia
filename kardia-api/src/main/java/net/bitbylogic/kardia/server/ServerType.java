@@ -19,15 +19,15 @@ public enum ServerType {
             new ArrayList<>(),
             "-Xms512m -Xmx1024m -Dcom.mojang.eula.agree=true",
             "",
-            List.of("messages.zip")
+            List.of("messages.zip", "minigames.zip")
     ),
     PROXY(
             "proxy",
             "Velocity.jar",
-            List.of("config.yml"),
+            List.of("velocity.toml"),
             "-Xms512m -Xmx1024m",
             null,
-            List.of("KardiaVelocity")
+            List.of("plugins.zip", "forwarding.secret")
     );
 
     private final String prefix;

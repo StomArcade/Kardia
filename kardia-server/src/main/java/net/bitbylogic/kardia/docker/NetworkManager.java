@@ -520,7 +520,7 @@ public class NetworkManager {
         line.accept("    && mkdir -p $SERVER_ROOT");
 
         line.accept("ADD resources/" +
-                dockerPackage.serverType().getJarName() +
+                dockerPackage.serverType().jarName() +
                 " $SERVER_ROOT");
 
         dockerPackage.serverType()
