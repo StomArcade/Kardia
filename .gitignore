@@ -6,8 +6,8 @@ build/
 **/target
 .kotlin
 **/src/main/resources/loot_tables/
-packages/
-resources/
+/packages/**
+/resources/**
 ./config.json
 ./config.yml
 
