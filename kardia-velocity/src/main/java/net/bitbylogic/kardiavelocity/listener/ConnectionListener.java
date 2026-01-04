@@ -63,9 +63,9 @@ public class ConnectionListener {
         if (!this.logins.contains(e.getPlayer().getUniqueId())) {
             KardiaServer server = KardiaVelocity.getInstance()
                     .getServerManager()
-                    .getPriorityServerById("stomarcade_lobby");
+                    .getPriorityServerById(KardiaVelocity.getInstance().getServerManager().environment().getEnv("LOBBY_ID", "fallback"));
 
-            if (server != null) {
+            if (server != null && server.joinState() == KardiaServer.JoinState.JOINABLE && !server.privateServer()) {
                 e.setInitialServer(KardiaVelocity.getInstance()
                         .getProxyServer()
                         .getServer(server.kardiaId())

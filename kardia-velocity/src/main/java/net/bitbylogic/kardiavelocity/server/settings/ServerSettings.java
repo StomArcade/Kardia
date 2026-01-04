@@ -46,4 +46,8 @@ public class ServerSettings {
         return motd;
     }
 
+    public void setJoinState(KardiaServer.JoinState joinState) {
+        this.joinState = joinState;
+    }
+
 }

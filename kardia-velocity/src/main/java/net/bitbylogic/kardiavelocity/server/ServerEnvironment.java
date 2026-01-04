@@ -21,9 +21,12 @@ public class ServerEnvironment {
     }
 
     public String getEnv(String var, String defaultVal) {
-        String val = envVariables.getOrDefault(var, defaultVal);
-        if(val == null)
-            setEnv(var, defaultVal);
+        String val = envVariables.get(var);
+
+        if(val == null) {
+            String systemVar = System.getenv(var);
+            setEnv(var, systemVar == null ? defaultVal : systemVar);
+        }
 
         return val != null ? val : defaultVal;
     }

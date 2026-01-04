@@ -50,6 +50,8 @@ public class ServerManager {
         this.serverSettings = new ServerSettings();
         this.serverEnvironment = new ServerEnvironment();
         this.serverName = serverEnvironment.getEnv(ServerEnvironment.EnvVariable.KARDIA_ID);
+
+        serverSettings.setJoinState(KardiaServer.JoinState.JOINABLE);
     }
 
     public void start() {
@@ -83,7 +85,7 @@ public class ServerManager {
                                 kardiaServer.ip(),
                                 kardiaServer.boundPort(),
                                 serverSettings.maxPlayers(),
-                                kardiaServer.joinState(),
+                                serverSettings.joinState(),
                                 serverSettings.isPrivateServer(),
                                 proxyServer.getAllPlayers().stream().map(Player::getUniqueId).toList()
                         );
@@ -135,7 +137,7 @@ public class ServerManager {
 
     public ServerInfo constructServerInfo(KardiaServer server) {
         return new ServerInfo(server.kardiaId(),
-                new InetSocketAddress(serverType != null ? "172.17.0.1" :
+                new InetSocketAddress(serverType != null ? "host.docker.internal" :
                         proxyServer.getBoundAddress().getHostString(), server.boundPort()));
     }
 
@@ -275,6 +277,10 @@ public class ServerManager {
                             .toList()
                     );
         }).toCompletableFuture();
+    }
+
+    public ServerEnvironment environment() {
+        return serverEnvironment;
     }
 
     public ServerType serverType() {
