@@ -460,7 +460,7 @@ public class NetworkManager {
         String id;
 
         do {
-            id = String.format("%s-%s", pkg.serverType().getPrefix(), getServersByInstance(pkg.instance()).size() + 1);
+            id = String.format("%s-%s", (pkg.prefix() == null ? pkg.serverType().prefix() : pkg.prefix()), getServersByInstance(pkg.instance()).size() + 1);
         } while (getContainerByKardiaId(id) != null);
 
         return id;

@@ -9,6 +9,7 @@ import java.util.Objects;
 public final class DockerPackage {
 
     private final List<String> ids;
+    private final String prefix;
     private final int cache;
     private final int portRangeMin;
     private final int portRangeMax;
@@ -32,11 +33,12 @@ public final class DockerPackage {
 
     private transient String instance;
 
-    public DockerPackage(List<String> ids, int cache, int portRangeMin, int portRangeMax, String root,
+    public DockerPackage(List<String> ids, String prefix, int cache, int portRangeMin, int portRangeMax, String root,
                          List<String> envVars, ServerType serverType, List<String> includedPlugins,
                          String world, boolean privateServer, String sqlHost, int sqlPort, String sqlDatabase,
                          String sqlUsername, String sqlPassword, String redisHost, int redisPort, String redisPassword) {
         this.ids = ids;
+        this.prefix = prefix;
         this.cache = cache;
         this.portRangeMin = portRangeMin;
         this.portRangeMax = portRangeMax;
@@ -146,7 +148,7 @@ public final class DockerPackage {
         DockerPackage that = (DockerPackage) o;
         return cache == that.cache && portRangeMin == that.portRangeMin && portRangeMax == that.portRangeMax &&
                 sqlPort == that.sqlPort && redisPort == that.redisPort && privateServer == that.privateServer &&
-                Objects.equals(ids, that.ids) && Objects.equals(root, that.root) && Objects.equals(envVars, that.envVars)
+                Objects.equals(ids, that.ids) && Objects.equals(prefix, that.prefix) && Objects.equals(root, that.root) && Objects.equals(envVars, that.envVars)
                 && serverType == that.serverType && Objects.equals(includedPlugins, that.includedPlugins)
                 && Objects.equals(world, that.world) && Objects.equals(instance, that.instance) &&
                 Objects.equals(sqlHost, that.sqlHost) && Objects.equals(sqlDatabase, that.sqlDatabase) &&
@@ -156,7 +158,7 @@ public final class DockerPackage {
 
     @Override
     public int hashCode() {
-        return Objects.hash(ids, cache, portRangeMin, portRangeMax, root, envVars, serverType, includedPlugins, world, instance,
+        return Objects.hash(ids, prefix, cache, portRangeMin, portRangeMax, root, envVars, serverType, includedPlugins, world, instance,
                 privateServer, sqlHost, sqlPort, sqlDatabase, sqlUsername, sqlPassword, redisHost, redisPort, redisPassword);
     }
 
@@ -164,6 +166,7 @@ public final class DockerPackage {
     public String toString() {
         return "DockerPackage{" +
                 "ids=" + ids +
+                ", prefix='" + prefix + '\'' +
                 ", cache=" + cache +
                 ", portRangeMin=" + portRangeMin +
                 ", portRangeMax=" + portRangeMax +
