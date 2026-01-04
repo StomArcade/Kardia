@@ -46,27 +46,27 @@ public enum ServerType {
         this.requiredConfigs = requiredConfigs;
     }
 
-    public String getPrefix() {
+    public String prefix() {
         return prefix;
     }
 
-    public String getJarName() {
+    public String jarName() {
         return jarName;
     }
 
-    public List<String> getConfigFiles() {
+    public List<String> configFiles() {
         return configFiles;
     }
 
-    public String getCommandLineArguments() {
+    public String commandLineArguments() {
         return commandLineArguments;
     }
 
-    public String getPostCommandLineArguments() {
+    public String postCommandLineArguments() {
         return postCommandLineArguments;
     }
 
-    public List<String> getRequiredConfigs() {
+    public List<String> requiredConfigs() {
         return requiredConfigs;
     }
 

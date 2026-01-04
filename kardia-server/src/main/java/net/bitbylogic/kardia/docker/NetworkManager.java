@@ -396,7 +396,7 @@ public class NetworkManager {
         }
 
         for (ServerType type : ServerType.values()) {
-            if(container.getNames()[0].substring(1).startsWith(type.getPrefix())) {
+            if(container.getNames()[0].substring(1).startsWith(type.prefix())) {
                 return true;
             }
         }
@@ -524,8 +524,8 @@ public class NetworkManager {
                 " $SERVER_ROOT");
 
         dockerPackage.serverType()
-                .getConfigFiles()
-                .forEach(f -> line.accept("ADD resources/" + f + " $SERVER_ROOT"));
+                .configFiles()
+                .forEach(f -> line.accept("ADD packages/" + instanceDirectory.getName() + "/" + f + " $SERVER_ROOT"));
 
         if (dockerPackage.world() != null) {
             line.accept("ADD packages/" +
@@ -551,7 +551,7 @@ public class NetworkManager {
             }
         });
 
-        dockerPackage.serverType().getRequiredConfigs().forEach(c ->
+        dockerPackage.serverType().requiredConfigs().forEach(c ->
                 line.accept("ADD packages/" +
                         instanceDirectory.getName() + "/" +
                         c +
@@ -560,7 +560,7 @@ public class NetworkManager {
 
         line.accept("WORKDIR $SERVER_ROOT");
 
-        List<String> zipFiles = dockerPackage.serverType().getRequiredConfigs().stream()
+        List<String> zipFiles = dockerPackage.serverType().requiredConfigs().stream()
                 .filter(c -> c.endsWith(".zip"))
                 .toList();
 
@@ -572,10 +572,10 @@ public class NetworkManager {
 
         String cmd =
                 "java " +
-                        dockerPackage.serverType().getCommandLineArguments() +
+                        dockerPackage.serverType().commandLineArguments() +
                         " -jar " +
-                        dockerPackage.serverType().getJarName() +
-                        Optional.ofNullable(dockerPackage.serverType().getPostCommandLineArguments())
+                        dockerPackage.serverType().jarName() +
+                        Optional.ofNullable(dockerPackage.serverType().postCommandLineArguments())
                                 .filter(s -> !s.isBlank())
                                 .map(s -> " " + s.trim())
                                 .orElse("");

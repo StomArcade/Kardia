@@ -66,6 +66,8 @@ public final class DockerPackage {
         return ids;
     }
 
+    public String prefix() {return prefix;}
+
     public int cache() {
         return cache;
     }
