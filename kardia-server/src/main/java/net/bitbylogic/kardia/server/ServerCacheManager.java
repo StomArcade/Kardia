@@ -16,8 +16,8 @@ public class ServerCacheManager {
         this.redisson = redisson;
     }
 
-    public KardiaServer registerServer(String kardiaId, String instance, List<String> ids, String ip, int boundPort, ServerType type) {
-        KardiaServer server = new KardiaServer(kardiaId, instance, ids, type, ip, boundPort,
+    public KardiaServer registerServer(String dockerId, String kardiaId, String instance, List<String> ids, String ip, int boundPort, ServerType type) {
+        KardiaServer server = new KardiaServer(dockerId, kardiaId, instance, ids, type, ip, boundPort,
                 500, KardiaServer.JoinState.NOT_JOINABLE, false, new ArrayList<>());
 
         redisson.getMap(RedisKeys.SERVERS).fastPut(kardiaId, Kardia.gson().toJson(server));

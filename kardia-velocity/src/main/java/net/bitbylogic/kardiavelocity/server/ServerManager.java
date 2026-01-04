@@ -70,7 +70,13 @@ public class ServerManager {
                     if (value != null) {
                         KardiaServer kardiaServer = gson.fromJson(value, KardiaServer.class);
 
-                        KardiaServer modifiedServer = new KardiaServer(kardiaServer.kardiaId(),
+                        if (serverType == null) {
+                            serverType = kardiaServer.serverType();
+                        }
+
+                        KardiaServer modifiedServer = new KardiaServer(
+                                kardiaServer.dockerId(),
+                                kardiaServer.kardiaId(),
                                 kardiaServer.instance(),
                                 kardiaServer.ids(),
                                 kardiaServer.serverType(),

@@ -691,6 +691,7 @@ public class NetworkManager {
                 activeContainers.add(container);
 
                 KardiaServer server = Kardia.serverManager().registerServer(
+                        response.getId(),
                         kardiaId,
                         pkg.instance(),
                         pkg.ids(),
