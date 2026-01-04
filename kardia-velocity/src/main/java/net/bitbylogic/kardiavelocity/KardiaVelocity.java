@@ -13,6 +13,7 @@ import net.bitbylogic.kardiavelocity.listener.ConnectionListener;
 import net.bitbylogic.kardiavelocity.listener.ServerKickListener;
 import net.bitbylogic.kardiavelocity.message.manager.MessageManager;
 import net.bitbylogic.kardiavelocity.message.messages.BrandingMessages;
+import net.bitbylogic.kardiavelocity.redis.CommandListener;
 import net.bitbylogic.kardiavelocity.redis.ConnectListener;
 import net.bitbylogic.kardiavelocity.redis.DisconnectListener;
 import net.bitbylogic.kardiavelocity.server.ServerManager;
@@ -78,6 +79,7 @@ public class KardiaVelocity {
 
         redisClient.registerListener(new ConnectListener());
         redisClient.registerListener(new DisconnectListener());
+        redisClient.registerListener(new CommandListener());
 
         this.serverManager = new ServerManager(this, proxyServer);
         serverManager.start();

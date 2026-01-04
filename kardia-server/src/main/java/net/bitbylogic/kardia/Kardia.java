@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import net.bitbylogic.kardia.command.CommandManager;
 import net.bitbylogic.kardia.docker.NetworkManager;
 import net.bitbylogic.kardia.redis.RedisCommandListener;
+import net.bitbylogic.kardia.redis.ServerShutdownListener;
 import net.bitbylogic.kardia.server.ServerCacheManager;
 import net.bitbylogic.rps.RedisManager;
 import net.bitbylogic.rps.client.RedisClient;
@@ -99,6 +100,7 @@ public class Kardia {
         redisClient = redisManager.registerClient(identifier);
 
         redisClient.registerListener(new RedisCommandListener());
+        redisClient.registerListener(new ServerShutdownListener());
     }
 
     public static Gson gson() {
