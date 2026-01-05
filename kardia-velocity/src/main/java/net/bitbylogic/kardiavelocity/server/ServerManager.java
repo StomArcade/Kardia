@@ -279,6 +279,10 @@ public class ServerManager {
         }).toCompletableFuture();
     }
 
+    public List<KardiaServer> cachedServers() {
+        return cachedServers;
+    }
+
     public ServerEnvironment environment() {
         return serverEnvironment;
     }
