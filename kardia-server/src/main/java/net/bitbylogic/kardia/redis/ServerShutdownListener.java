@@ -21,7 +21,8 @@ public class ServerShutdownListener extends RedisMessageListener {
             return;
         }
 
-        Kardia.network().stopServer(server);
+        Kardia.network().stopServer(server).thenRun(() ->
+                Kardia.network().validateCacheRequirement(Kardia.network().getPackage(server.instance())));
     }
 
 }
