@@ -72,7 +72,7 @@ public class ConnectionListener {
                         .orElseThrow());
                 this.logins.add(e.getPlayer().getUniqueId());
             } else {
-                e.getPlayer().disconnect(Component.text("§cCould not find a server to connect you to!"));
+                e.setInitialServer(KardiaVelocity.getInstance().getProxyServer().getServer("fallback").orElseThrow());
             }
         }
     }

@@ -41,6 +41,13 @@ import java.util.stream.Collectors;
 
 public class NetworkManager {
 
+    private static final String LIMBO_NAME = "picolimbo-fallback";
+    private static final String LIMBO_IMAGE = "ghcr.io/quozul/picolimbo:latest";
+    private static final int LIMBO_PORT = 25564;
+
+    private static final String LIMBO_CONFIG_NAME = "server.toml";
+    private static final String LIMBO_INSTANCE = "limbo";
+
     private final File rootDirectory = new File(Paths.get("").toUri());
 
     private final Map<String, String> imageCache = new ConcurrentHashMap<>();
@@ -58,6 +65,8 @@ public class NetworkManager {
 
     private final DockerHttpClient httpClient;
     private final DockerClient dockerClient;
+
+    private String limboContainerId;
 
     public NetworkManager() {
         String dockerHost = System.getenv("DOCKER_HOST");
@@ -83,6 +92,9 @@ public class NetworkManager {
     }
 
     private void setup() {
+        cleanupLimbo();
+        ensureLimboActive();
+
         Arrays.stream(FileConstants.values()).forEach(file -> {
             File f = new File(rootDirectory.getAbsolutePath() + file.getRelativePath());
 
@@ -295,6 +307,7 @@ public class NetworkManager {
         this.serverManager.shutdown();
         this.containerService.shutdown();
         this.packageCache.invalidateAll();
+        this.shutdownLimbo();
 
         try {
             try (DockerClient dockerClient = this.dockerClient) {
@@ -715,6 +728,7 @@ public class NetworkManager {
                 "KARDIA_BOUND_PORT=" + boundPort,
                 "KARDIA_INSTANCE_NAME=" + pkg.instance() + ":" + pkg.ids().getFirst(),
                 "KARDIA_PRIVATE_SERVER=" + pkg.isPrivateServer(),
+                "VELOCITY_SECRET=" + Kardia.config().getString("Velocity-Secret", "secret"),
                 "SQL_HOST=" + (pkg.sqlHost() == null ? Kardia.config().getString("Server.SQL.Host", "localhost") : pkg.sqlHost()),
                 "SQL_DATABASE=" + (pkg.sqlDatabase() == null ? Kardia.config().getString("Server.SQL.Database", "test") : pkg.sqlDatabase()),
                 "SQL_PORT=" + (pkg.sqlPort() == 0 ? Kardia.config().getInt("Server.SQL.Port", 3306) : pkg.sqlPort()),
@@ -817,6 +831,150 @@ public class NetworkManager {
         completed.complete(false);
 
         return completed;
+    }
+
+    private void ensureLimboActive() {
+        writeLimboConfig();
+
+        List<Container> containers = dockerClient.listContainersCmd()
+                .withShowAll(true)
+                .exec();
+
+        for (Container container : containers) {
+            for (String name : container.getNames()) {
+                if (name.equals("/" + LIMBO_NAME)) {
+                    if (!container.getState().equalsIgnoreCase("running")) {
+                        dockerClient.startContainerCmd(container.getId()).exec();
+                    }
+
+                    Kardia.LOGGER.info("PicoLimbo fallback already running.");
+                    return;
+                }
+            }
+        }
+
+        pullLimbo();
+        startLimbo();
+    }
+
+    private void pullLimbo() {
+        try {
+            dockerClient.pullImageCmd(LIMBO_IMAGE)
+                    .start()
+                    .awaitCompletion();
+        } catch (InterruptedException e) {
+            Kardia.LOGGER.error("Failed to pull PicoLimbo image!", e);
+        }
+    }
+
+    private void startLimbo() {
+        Ports ports = new Ports();
+        ports.bind(
+                ExposedPort.tcp(25565),
+                Ports.Binding.bindPort(LIMBO_PORT)
+        );
+
+        HostConfig hostConfig = new HostConfig()
+                .withPortBindings(ports)
+                .withRestartPolicy(RestartPolicy.alwaysRestart())
+                .withNetworkMode("bridge")
+                .withBinds(new Bind(
+                        getLimboConfigFile().getAbsolutePath(),
+                        new Volume("/usr/src/app/server.toml")
+                ));
+
+        CreateContainerResponse response = dockerClient.createContainerCmd(LIMBO_IMAGE)
+                .withName(LIMBO_NAME)
+                .withHostConfig(hostConfig)
+                .exec();
+
+        limboContainerId = response.getId();
+        dockerClient.startContainerCmd(limboContainerId).exec();
+
+        Kardia.LOGGER.info("Started PicoLimbo fallback server.");
+    }
+
+    private void shutdownLimbo() {
+        if (limboContainerId == null) {
+            return;
+        }
+
+        try {
+            dockerClient.stopContainerCmd(limboContainerId)
+                    .withTimeout(5)
+                    .exec();
+        } catch (Exception ignored) {}
+
+        try {
+            dockerClient.removeContainerCmd(limboContainerId)
+                    .withForce(true)
+                    .exec();
+        } catch (Exception ignored) {}
+    }
+
+    private void cleanupLimbo() {
+        dockerClient.listContainersCmd()
+                .withShowAll(true)
+                .exec()
+                .forEach(container -> {
+                    for (String name : container.getNames()) {
+                        if (name.equals("/" + LIMBO_NAME)) {
+                            dockerClient.removeContainerCmd(container.getId())
+                                    .withForce(true)
+                                    .exec();
+                        }
+                    }
+                });
+    }
+
+    private void writeLimboConfig() {
+        try {
+            File dir = getLimboDirectory();
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IOException("Failed to create limbo directory");
+            }
+
+            String secret = Kardia.config().getString("Velocity-Secret", "secret");
+
+            String toml = """
+                bind = "0.0.0.0:25565"
+                welcome_message = ""
+
+                [forwarding]
+                method = "MODERN"
+                secret = "%s"
+                
+                [tab_list]
+                enabled = false
+                player_listed = true
+                
+                [title]
+                enabled = false
+                
+                [boss_bar]
+                enabled = false
+                
+                """.formatted(secret);
+
+            Files.writeString(
+                    getLimboConfigFile().toPath(),
+                    toml,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+
+            Kardia.LOGGER.info("Generated PicoLimbo server.toml");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write PicoLimbo config", e);
+        }
+    }
+
+    private File getLimboDirectory() {
+        return new File(getFile(FileConstants.PACKAGES_DIRECTORY), LIMBO_INSTANCE);
+    }
+
+    private File getLimboConfigFile() {
+        return new File(getLimboDirectory(), LIMBO_CONFIG_NAME);
     }
 
     public DockerClient dockerClient() {

@@ -1,4 +1,10 @@
-# The configuration for the redis connection.
+# The docker host to connect to.
+Docker-Host: "tcp://localhost:2375"
+
+# The secret used to authenticate Velocity clients.
+Velocity-Secret: "secret"
+
+# The configuration for the redis connection for Kardia.
 Redis:
   Host: localhost
   Port: 6379
