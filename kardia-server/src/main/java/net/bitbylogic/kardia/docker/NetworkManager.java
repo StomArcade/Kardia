@@ -46,7 +46,8 @@ public class NetworkManager {
     private final Map<String, String> imageCache = new ConcurrentHashMap<>();
     private final Cache<String, DockerPackage> packageCache = CacheBuilder.newBuilder().build();
 
-    private final List<String> pendingInstances = new CopyOnWriteArrayList<>();
+    private final Set<String> buildingImages = ConcurrentHashMap.newKeySet();
+
     private final List<KardiaServer> activeServers = new CopyOnWriteArrayList<>();
     private final List<KardiaContainer> activeContainers = new CopyOnWriteArrayList<>();
 
@@ -283,8 +284,9 @@ public class NetworkManager {
 
     private void startManagerThread() {
         this.serverManager.scheduleAtFixedRate(() -> {
-            packageCache.asMap().forEach((_, dockerPackage) ->
-                    validateCacheRequirement(dockerPackage));
+            packageCache.asMap().values().stream()
+                    .sorted(Comparator.comparing(pkg -> pkg.serverType() != ServerType.PROXY))
+                    .forEach(this::validateCacheRequirement);
         }, 0, 10, TimeUnit.SECONDS);
     }
 
@@ -318,7 +320,7 @@ public class NetworkManager {
 
         String imageKey = dockerPackage.getImageKey();
 
-        if (!imageCache.containsKey(imageKey)) {
+        if (buildingImages.contains(imageKey) || !imageCache.containsKey(imageKey)) {
             return;
         }
 
@@ -326,11 +328,9 @@ public class NetworkManager {
         int currentCount = servers.size();
         int requiredCount = dockerPackage.cache();
 
-        if (currentCount >= requiredCount || pendingInstances.contains(dockerPackage.instance())) {
+        if (currentCount >= requiredCount) {
             return;
         }
-
-        pendingInstances.add(dockerPackage.instance());
 
         String pkgId = dockerPackage.ids().getFirst();
         Kardia.LOGGER.info(
@@ -443,8 +443,6 @@ public class NetworkManager {
                 dockerPackage.setInstance(instance);
 
                 packageCache.put(instance, dockerPackage);
-
-                validateCacheRequirement(dockerPackage);
             }
         } catch (Exception e) {
             Kardia.LOGGER.error("Failed to load package {}!", instance, e);
@@ -514,8 +512,33 @@ public class NetworkManager {
     }
 
     public CompletableFuture<String> createImage(DockerPackage dockerPackage) {
+        List<CompletableFuture<Boolean>> stopFutures = getServersByInstance(dockerPackage.instance())
+                .stream()
+                .map(server ->
+                        Kardia.network().stopServer(server).thenApply(completed -> {
+                            if (completed) {
+                                Kardia.LOGGER.info("Successfully stopped server {}!", server.kardiaId());
+                            } else {
+                                Kardia.LOGGER.error(
+                                        "Could not stop server {}! Perhaps it is already stopped?",
+                                        server.kardiaId()
+                                );
+                            }
+                            return completed;
+                        })
+                )
+                .toList();
+
         CompletableFuture<String> imageIdCompletable = new CompletableFuture<>();
 
+        CompletableFuture
+                .allOf(stopFutures.toArray(new CompletableFuture[0]))
+                .thenRunAsync(() -> buildImage(dockerPackage, imageIdCompletable));
+
+        return imageIdCompletable;
+    }
+
+    public void buildImage(DockerPackage dockerPackage,  CompletableFuture<String> imageIdCompletable) {
         File instanceDirectory = new File(
                 getFile(FileConstants.PACKAGES_DIRECTORY),
                 dockerPackage.instance()
@@ -611,6 +634,8 @@ public class NetworkManager {
             AtomicBoolean started = new AtomicBoolean(false);
             String imageKey = dockerPackage.getImageKey();
 
+            buildingImages.add(imageKey);
+
             dockerClient.buildImageCmd()
                     .withTags(Sets.newHashSet(imageKey))
                     .withDockerfile(file)
@@ -622,23 +647,41 @@ public class NetworkManager {
                             }
 
                             if (item.getErrorDetail() != null) {
-                                Kardia.LOGGER.error("Error building image for {}: {}", dockerPackage.instance(), item.getErrorDetail().getMessage());
+                                buildingImages.remove(imageKey);
+                                Kardia.LOGGER.error(
+                                        "Error building image for {}: {}",
+                                        dockerPackage.instance(),
+                                        item.getErrorDetail().getMessage()
+                                );
                             }
 
                             if (item.isBuildSuccessIndicated()) {
-                                Kardia.LOGGER.info("Successfully built image for {}!", dockerPackage.instance());
-                                String id = item.getImageId();
+                                buildingImages.remove(imageKey);
 
-                                imageCache.remove(imageKey);
-                                imageCache.put(imageKey, id);
+                                Kardia.LOGGER.info(
+                                        "Successfully built image for {}!",
+                                        dockerPackage.instance()
+                                );
+
+                                String newImageId = item.getImageId();
+                                imageCache.put(imageKey, newImageId);
+
+                                imageIdCompletable.complete(newImageId);
+
+                                containerService.submit(() -> validateCacheRequirement(dockerPackage));
+
+                                String oldImageId = imageCache.get(imageKey);
+                                if (oldImageId != null && !oldImageId.equals(newImageId)) {
+                                    dockerClient.removeImageCmd(oldImageId)
+                                            .withForce(true)
+                                            .exec();
+                                }
 
                                 try {
                                     Files.delete(file.toPath());
                                 } catch (IOException e) {
                                     Kardia.LOGGER.error("Failed to delete Dockerfile!", e);
                                 }
-
-                                imageIdCompletable.complete(id);
                             }
 
                             String stream = item.getStream();
@@ -649,8 +692,6 @@ public class NetworkManager {
                         }
                     });
         });
-
-        return imageIdCompletable;
     }
 
     public synchronized void startPackage(DockerPackage pkg, Callback<String> callback) {
@@ -658,7 +699,6 @@ public class NetworkManager {
 
         if (!imageCache.containsKey(imageKey) || imageCache.get(imageKey) == null) {
             callback.error("Image for package does not exist.");
-            pendingInstances.remove(pkg.instance());
             return;
         }
 
@@ -715,7 +755,6 @@ public class NetworkManager {
                 );
 
                 activeServers.add(server);
-                pendingInstances.remove(pkg.instance());
 
                 callback.info("Started container with ID: " + container.kardiaId());
 
