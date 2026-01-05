@@ -21,6 +21,7 @@ import net.bitbylogic.kardia.server.KardiaServer;
 import net.bitbylogic.kardia.server.ServerType;
 import net.bitbylogic.kardia.util.Callback;
 import net.bitbylogic.kardia.util.RedisKeys;
+import net.bitbylogic.rps.listener.ListenerComponent;
 import org.redisson.api.RMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class NetworkManager {
     private final Map<String, String> imageCache = new ConcurrentHashMap<>();
     private final Cache<String, DockerPackage> packageCache = CacheBuilder.newBuilder().build();
 
+    private final List<String> pendingInstances = new CopyOnWriteArrayList<>();
     private final List<KardiaServer> activeServers = new CopyOnWriteArrayList<>();
     private final List<KardiaContainer> activeContainers = new CopyOnWriteArrayList<>();
 
@@ -281,41 +283,8 @@ public class NetworkManager {
 
     private void startManagerThread() {
         this.serverManager.scheduleAtFixedRate(() -> {
-            packageCache.asMap().forEach((_, dockerPackage) -> {
-                String imageKey = dockerPackage.getImageKey();
-
-                if (!imageCache.containsKey(imageKey)) {
-                    return;
-                }
-
-                List<KardiaServer> servers = getServersById(dockerPackage.ids().getFirst());
-                int currentCount = servers.size();
-                int requiredCount = dockerPackage.cache();
-
-                if (currentCount >= requiredCount) {
-                    return;
-                }
-
-                String pkgId = dockerPackage.ids().getFirst();
-                Kardia.LOGGER.info(
-                        "Starting package {} to meet cache requirement ({}/{})",
-                        pkgId, currentCount, requiredCount
-                );
-
-                Logger packageLogger = LoggerFactory.getLogger(pkgId);
-
-                startPackage(dockerPackage, new Callback<>() {
-                    @Override
-                    public void info(String message) {
-                        packageLogger.info(message);
-                    }
-
-                    @Override
-                    public void error(String message) {
-                        packageLogger.error(message);
-                    }
-                });
-            });
+            packageCache.asMap().forEach((_, dockerPackage) ->
+                    validateCacheRequirement(dockerPackage));
         }, 0, 10, TimeUnit.SECONDS);
     }
 
@@ -340,6 +309,48 @@ public class NetworkManager {
         } catch (IOException e) {
             Kardia.LOGGER.error("Failed to close HTTP client!", e);
         }
+    }
+
+    public void validateCacheRequirement(DockerPackage dockerPackage) {
+        if (dockerPackage == null) {
+            return;
+        }
+
+        String imageKey = dockerPackage.getImageKey();
+
+        if (!imageCache.containsKey(imageKey)) {
+            return;
+        }
+
+        List<KardiaServer> servers = getServersById(dockerPackage.ids().getFirst());
+        int currentCount = servers.size();
+        int requiredCount = dockerPackage.cache();
+
+        if (currentCount >= requiredCount || pendingInstances.contains(dockerPackage.instance())) {
+            return;
+        }
+
+        pendingInstances.add(dockerPackage.instance());
+
+        String pkgId = dockerPackage.ids().getFirst();
+        Kardia.LOGGER.info(
+                "Starting package {} to meet cache requirement ({}/{})",
+                pkgId, currentCount, requiredCount
+        );
+
+        Logger packageLogger = LoggerFactory.getLogger(pkgId);
+
+        startPackage(dockerPackage, new Callback<>() {
+            @Override
+            public void info(String message) {
+                packageLogger.info(message);
+            }
+
+            @Override
+            public void error(String message) {
+                packageLogger.error(message);
+            }
+        });
     }
 
     public File getFile(FileConstants constant) {
@@ -432,6 +443,8 @@ public class NetworkManager {
                 dockerPackage.setInstance(instance);
 
                 packageCache.put(instance, dockerPackage);
+
+                validateCacheRequirement(dockerPackage);
             }
         } catch (Exception e) {
             Kardia.LOGGER.error("Failed to load package {}!", instance, e);
@@ -645,6 +658,7 @@ public class NetworkManager {
 
         if (!imageCache.containsKey(imageKey) || imageCache.get(imageKey) == null) {
             callback.error("Image for package does not exist.");
+            pendingInstances.remove(pkg.instance());
             return;
         }
 
@@ -701,8 +715,11 @@ public class NetworkManager {
                 );
 
                 activeServers.add(server);
+                pendingInstances.remove(pkg.instance());
 
                 callback.info("Started container with ID: " + container.kardiaId());
+
+                Kardia.redisClient().sendListenerMessage(new ListenerComponent("server_added").addData("server", server));
             } catch (Exception e) {
                 callback.error("An error occurred while starting the server: " + e.getMessage());
             }
@@ -718,30 +735,48 @@ public class NetworkManager {
      */
     public synchronized CompletableFuture<Boolean> stopContainer(KardiaContainer container) {
         CompletableFuture<Boolean> completed = new CompletableFuture<>();
+
         containerService.submit(() -> {
             try {
                 dockerClient.removeContainerCmd(container.dockerId())
                         .withForce(true)
                         .exec();
+
                 completed.complete(true);
 
                 activeContainers.remove(container);
+
+                RMap<String, String> allServers = Kardia.redisClient().getRedisClient().getMap(RedisKeys.SERVERS);
+
+                allServers.fastRemove(container.kardiaId());
+
+                KardiaServer server = getServerByKardiaID(container.kardiaId());
+
+                if (server == null) {
+                    return;
+                }
+
+                activeServers.remove(server);
+
+                Kardia.redisClient().sendListenerMessage(new ListenerComponent("server_removed").addData("server", server));
             } catch (Exception e) {
                 Kardia.LOGGER.error("Failed to stop container!", e);
             }
         });
+
         return completed;
     }
 
     public synchronized CompletableFuture<Boolean> stopServer(KardiaServer server) {
-        CompletableFuture<Boolean> completed;
         KardiaContainer container = getContainerByKardiaId(server.kardiaId());
+
         if (container != null) {
-            completed = stopContainer(container);
-        } else {
-            completed = new CompletableFuture<>();
-            completed.complete(false);
+            return stopContainer(container);
         }
+
+        CompletableFuture<Boolean> completed = new CompletableFuture<>();
+        completed.complete(false);
+
         return completed;
     }
 
@@ -758,10 +793,7 @@ public class NetworkManager {
     }
 
     public Cache<String, DockerPackage> packageCache() {
-        Cache<String, DockerPackage> tempCache = CacheBuilder.newBuilder().build();
-        tempCache.putAll(packageCache.asMap());
-
-        return tempCache;
+        return packageCache;
     }
 
 }

@@ -31,6 +31,24 @@ public class ReloadPackageCommand extends Command {
                 sender.sendMessage("Loading package data.");
                 Kardia.network().loadPackage(args[0]);
 
+                if (stopContainers) {
+                    sender.sendMessage("Stopping all running containers for package " + args[0] + ".");
+
+                    List<KardiaServer> servers = Kardia.network().getServersByInstance(args[0]);
+
+                    for (KardiaServer server : servers) {
+                        sender.sendMessage("Sending request to stop server " + server.kardiaId() + ". You will be notified when it is stopped.");
+
+                        Kardia.network().stopServer(server).thenAccept(completed -> {
+                            if(completed) {
+                                sender.sendMessage("Successfully stopped server " + server.kardiaId() + "!");
+                            } else {
+                                sender.sendError("Could not stop server " + server.kardiaId() + "! Perhaps it is already stopped?");
+                            }
+                        });
+                    }
+                }
+
                 if(buildImages) {
                     sender.sendMessage("Retrieving all package data to build images.");
                     DockerPackage dockerPackage = Kardia.network().getPackage(args[0]);
@@ -38,28 +56,10 @@ public class ReloadPackageCommand extends Command {
                     if(dockerPackage != null) {
                         sender.sendMessage("Building image for package" + args[0] + ".");
 
-                        if (!stopContainers) {
-                            return;
-                        }
-
                         sender.sendMessage("Stopping all running containers for package " + args[0] + ".");
 
                         Kardia.network().createImage(dockerPackage).thenAccept(_ -> {
                             sender.sendMessage("Finished building images.");
-
-                            List<KardiaServer> servers = Kardia.network().getServersByInstance(args[0]);
-
-                            for (KardiaServer server : servers) {
-                                sender.sendMessage("Sending request to stop server " + server.kardiaId() + ". You will be notified when it is stopped.");
-
-                                Kardia.network().stopServer(server).thenAccept(completed -> {
-                                    if(completed) {
-                                        sender.sendMessage("Successfully stopped server " + server.kardiaId() + "!");
-                                    } else {
-                                        sender.sendError("Could not stop server " + server.kardiaId() + "! Perhaps it is already stopped?");
-                                    }
-                                });
-                            }
                         });
                     } else {
                         sender.sendWarning("Seems like the package is invalid.");
