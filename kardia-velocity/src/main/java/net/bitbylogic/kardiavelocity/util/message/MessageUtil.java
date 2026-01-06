@@ -63,15 +63,15 @@ public class MessageUtil {
     private static Component branding(@NotNull String brandingMessage, @NotNull String message, TagResolver.Single... placeholders) {
         List<TagResolver.Single> finalPlaceholders = new ArrayList<>(List.of(placeholders));
         finalPlaceholders.add(Placeholder.component("header", Component.text("Stom Arcade")));
-        finalPlaceholders.add(Placeholder.unparsed("message", message));
+        finalPlaceholders.add(Placeholder.parsed("message", message));
 
         return MINI_MESSAGE.deserialize(brandingMessage, finalPlaceholders.toArray(TagResolver.Single[]::new));
     }
 
     private static Component branding(@NotNull String brandingMessage, @NotNull String header, @NotNull String message, TagResolver.Single... placeholders) {
         List<TagResolver.Single> finalPlaceholders = new ArrayList<>(List.of(placeholders));
-        finalPlaceholders.add(Placeholder.unparsed("header", header));
-        finalPlaceholders.add(Placeholder.unparsed("message", message));
+        finalPlaceholders.add(Placeholder.parsed("header", header));
+        finalPlaceholders.add(Placeholder.parsed("message", message));
 
         return MINI_MESSAGE.deserialize(brandingMessage, finalPlaceholders.toArray(TagResolver.Single[]::new));
     }
