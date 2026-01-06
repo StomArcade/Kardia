@@ -11,6 +11,7 @@ import net.bitbylogic.kardia.util.RedisKeys;
 import net.bitbylogic.kardiavelocity.KardiaVelocity;
 import net.bitbylogic.kardiavelocity.server.player.KardiaPlayer;
 import net.bitbylogic.kardiavelocity.server.settings.ServerSettings;
+import net.bitbylogic.kardiavelocity.util.message.MessageUtil;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 import org.redisson.api.RMap;
@@ -55,6 +56,24 @@ public class ServerManager {
     }
 
     public void start() {
+        proxyServer.getScheduler().buildTask(plugin, () -> {
+            for (Player player : proxyServer.getAllPlayers()) {
+                if(player.getCurrentServer().isPresent() && !player.getCurrentServer().get().getServerInfo().getName().equalsIgnoreCase("fallback")) {
+                    continue;
+                }
+
+                KardiaServer server = KardiaVelocity.getInstance()
+                        .getServerManager()
+                        .getPriorityServerById(KardiaVelocity.getInstance().getServerManager().environment().getEnv("LOBBY_ID", "fallback"));
+
+                if (server == null || server.joinState() != KardiaServer.JoinState.JOINABLE) {
+                    continue;
+                }
+
+                connectPlayer(player, server);
+            }
+        }).repeat(Duration.ofSeconds(1)).schedule();
+
         proxyServer.getScheduler().buildTask(plugin, () -> {
             RedissonClient redissonClient = plugin.getRedisManager().getRedissonClient();
             RMap<String, String> servers = redissonClient.getMap(RedisKeys.SERVERS);
@@ -176,10 +195,10 @@ public class ServerManager {
 
     public void connectPlayer(Player player, KardiaServer server, boolean notify) {
         ServerInfo info = constructServerInfo(server);
-        proxyServer.getServer(info.getName()).ifPresent(player::createConnectionRequest);
+        proxyServer.getServer(info.getName()).ifPresent(registeredServer -> player.createConnectionRequest(registeredServer).connect());
 
         if(notify) {
-            player.sendMessage(Component.text("§7Connecting you to §e" + server.kardiaId() + "§7!"));
+            player.sendMessage(MessageUtil.success("Connecting you to <success_highlight>" + server.kardiaId() + "<success_secondary>..."));
         }
     }
 
