@@ -17,7 +17,7 @@ public final class DockerPackage {
     private final List<String> envVars;
     private final ServerType serverType;
 
-    private final List<String> includedPlugins;
+    private final List<String> includedFiles;
     private final String world;
     private final boolean privateServer;
 
@@ -34,7 +34,7 @@ public final class DockerPackage {
     private transient String instance;
 
     public DockerPackage(List<String> ids, String prefix, int cache, int portRangeMin, int portRangeMax, String root,
-                         List<String> envVars, ServerType serverType, List<String> includedPlugins,
+                         List<String> envVars, ServerType serverType, List<String> includedFiles,
                          String world, boolean privateServer, String sqlHost, int sqlPort, String sqlDatabase,
                          String sqlUsername, String sqlPassword, String redisHost, int redisPort, String redisPassword) {
         this.ids = ids;
@@ -45,7 +45,7 @@ public final class DockerPackage {
         this.root = root;
         this.envVars = envVars;
         this.serverType = serverType;
-        this.includedPlugins = includedPlugins;
+        this.includedFiles = includedFiles;
         this.world = world;
         this.privateServer = privateServer;
         this.sqlHost = sqlHost;
@@ -86,6 +86,10 @@ public final class DockerPackage {
 
     public ServerType serverType() {
         return serverType;
+    }
+
+    public List<String> includedFiles() {
+        return includedFiles;
     }
 
     public String world() {
@@ -151,7 +155,7 @@ public final class DockerPackage {
         return cache == that.cache && portRangeMin == that.portRangeMin && portRangeMax == that.portRangeMax &&
                 sqlPort == that.sqlPort && redisPort == that.redisPort && privateServer == that.privateServer &&
                 Objects.equals(ids, that.ids) && Objects.equals(prefix, that.prefix) && Objects.equals(root, that.root) && Objects.equals(envVars, that.envVars)
-                && serverType == that.serverType && Objects.equals(includedPlugins, that.includedPlugins)
+                && serverType == that.serverType && Objects.equals(includedFiles, that.includedFiles)
                 && Objects.equals(world, that.world) && Objects.equals(instance, that.instance) &&
                 Objects.equals(sqlHost, that.sqlHost) && Objects.equals(sqlDatabase, that.sqlDatabase) &&
                 Objects.equals(sqlUsername, that.sqlUsername) && Objects.equals(sqlPassword, that.sqlPassword) &&
@@ -160,7 +164,7 @@ public final class DockerPackage {
 
     @Override
     public int hashCode() {
-        return Objects.hash(ids, prefix, cache, portRangeMin, portRangeMax, root, envVars, serverType, includedPlugins, world, instance,
+        return Objects.hash(ids, prefix, cache, portRangeMin, portRangeMax, root, envVars, serverType, includedFiles, world, instance,
                 privateServer, sqlHost, sqlPort, sqlDatabase, sqlUsername, sqlPassword, redisHost, redisPort, redisPassword);
     }
 
@@ -175,7 +179,7 @@ public final class DockerPackage {
                 ", root='" + root + '\'' +
                 ", envVars=" + envVars +
                 ", serverType=" + serverType +
-                ", includedPlugins=" + includedPlugins +
+                ", includedPlugins=" + includedFiles +
                 ", world='" + world + '\'' +
                 ", instance='" + instance + '\'' +
                 ", privateServer=" + privateServer +

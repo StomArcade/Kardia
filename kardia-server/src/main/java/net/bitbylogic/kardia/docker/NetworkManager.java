@@ -607,11 +607,20 @@ public class NetworkManager {
                         " $SERVER_ROOT")
         );
 
+        dockerPackage.includedFiles().forEach(c ->
+                line.accept("ADD packages/" +
+                        instanceDirectory.getName() + "/" +
+                        c +
+                        " $SERVER_ROOT")
+        );
+
         line.accept("WORKDIR $SERVER_ROOT");
 
-        List<String> zipFiles = dockerPackage.serverType().requiredConfigs().stream()
+        List<String> zipFiles = new ArrayList<>(dockerPackage.serverType().requiredConfigs().stream()
                 .filter(c -> c.endsWith(".zip"))
-                .toList();
+                .toList());
+
+        zipFiles.addAll(dockerPackage.includedFiles().stream().filter(s -> s.endsWith(".zip")).toList());
 
         if (!zipFiles.isEmpty()) {
             line.accept("RUN " + zipFiles.stream()
