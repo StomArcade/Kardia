@@ -5,8 +5,6 @@ import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.bitbylogic.kardia.server.KardiaServer;
 import net.bitbylogic.kardiavelocity.KardiaVelocity;
-import net.bitbylogic.kardiavelocity.util.message.MessageUtil;
-import net.kyori.adventure.text.Component;
 
 public class ServerKickListener {
 
@@ -15,7 +13,8 @@ public class ServerKickListener {
         ServerInfo server = e.getServer().getServerInfo();
 
         if(!server.getName().equalsIgnoreCase("fallback")) {
-            KardiaServer kardiaServer = KardiaVelocity.getInstance().getServerManager().getPriorityServerById("arcade_lounge");
+            KardiaServer kardiaServer = KardiaVelocity.getInstance().getServerManager().getPriorityServerById("lobby");
+
             if(kardiaServer != null) {
                 ServerInfo asInfo = KardiaVelocity.getInstance().getServerManager().constructServerInfo(kardiaServer);
                 if(!asInfo.getAddress().getHostName().equals(server.getAddress().getHostName()) ||
@@ -24,8 +23,7 @@ public class ServerKickListener {
                 }
             }
 
-            e.getServerKickReason().ifPresent(component -> e.getPlayer().sendMessage(component));
-            e.setResult(KickedFromServerEvent.Notify.create(MessageUtil.error("Unable to connect to server.")));
+            KardiaVelocity.getInstance().getProxyServer().getServer("fallback").ifPresent(fallback -> e.setResult(KickedFromServerEvent.RedirectPlayer.create(fallback)));
         }
     }
 }
