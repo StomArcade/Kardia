@@ -700,6 +700,7 @@ public class NetworkManager {
                                 String newImageId = item.getImageId();
                                 imageCache.put(imageKey, newImageId);
 
+                                dockerClient.pruneCmd(PruneType.IMAGES).exec();
                                 imageIdCompletable.complete(newImageId);
 
                                 containerService.submit(() -> validateCacheRequirement(dockerPackage));
@@ -727,7 +728,6 @@ public class NetworkManager {
             Kardia.LOGGER.info("Removing existing image {}", imageKey);
             dockerClient.removeImageCmd(imageKey)
                     .withForce(true)
-                    .withNoPrune(true)
                     .exec();
         } catch (NotFoundException ignored) {
 
