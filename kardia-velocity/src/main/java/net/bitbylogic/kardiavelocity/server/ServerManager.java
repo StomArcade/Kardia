@@ -198,7 +198,7 @@ public class ServerManager {
         proxyServer.getServer(info.getName()).ifPresent(registeredServer -> player.createConnectionRequest(registeredServer).connect());
 
         if(notify) {
-            player.sendMessage(MessageUtil.success("Connecting you to <success_highlight>" + server.kardiaId() + "<success_secondary>..."));
+            player.sendMessage(MessageUtil.success("Connecting you to <success_highlight><smallcaps>" + server.kardiaId() + "<success_secondary>..."));
         }
     }
 
