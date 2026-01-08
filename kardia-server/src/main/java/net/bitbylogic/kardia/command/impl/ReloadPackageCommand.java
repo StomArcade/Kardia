@@ -33,9 +33,8 @@ public class ReloadPackageCommand extends Command {
                     DockerPackage dockerPackage = Kardia.network().getPackage(args[0]);
 
                     if(dockerPackage != null) {
-                        sender.sendMessage("Building image for package" + args[0] + ".");
-
                         sender.sendMessage("Stopping all running containers for package " + args[0] + ".");
+                        sender.sendMessage("Building image for package " + args[0] + ".");
 
                         Kardia.network().createImage(dockerPackage).thenAccept(_ -> {
                             sender.sendMessage("Finished building images.");

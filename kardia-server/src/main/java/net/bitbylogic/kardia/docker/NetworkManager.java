@@ -3,6 +3,7 @@ package net.bitbylogic.kardia.docker;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.BuildImageResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
@@ -546,12 +547,25 @@ public class NetworkManager {
 
         CompletableFuture
                 .allOf(stopFutures.toArray(new CompletableFuture[0]))
-                .thenRunAsync(() -> buildImage(dockerPackage, imageIdCompletable));
+                .thenRunAsync(() -> {
+                    try {
+                        buildImage(dockerPackage, imageIdCompletable);
+                    } catch (Exception e) {
+                        Kardia.LOGGER.error("Failed to build image for package {}!", dockerPackage.instance(), e);
+                        imageIdCompletable.completeExceptionally(e);
+                    }
+                });
 
         return imageIdCompletable;
     }
 
     public void buildImage(DockerPackage dockerPackage,  CompletableFuture<String> imageIdCompletable) {
+        String imageKey = dockerPackage.getImageKey();
+
+        removeExistingImage(imageKey);
+
+        buildingImages.add(imageKey);
+
         File instanceDirectory = new File(
                 getFile(FileConstants.PACKAGES_DIRECTORY),
                 dockerPackage.instance()
@@ -647,6 +661,7 @@ public class NetworkManager {
         try {
             Files.write(file.toPath(), dockerfile, StandardOpenOption.CREATE);
         } catch (IOException e) {
+            buildingImages.remove(imageKey);
             Kardia.LOGGER.error("Failed to write Dockerfile!", e);
         }
 
@@ -654,9 +669,6 @@ public class NetworkManager {
             Kardia.LOGGER.info("Building image for package {}...", dockerPackage.instance());
 
             AtomicBoolean started = new AtomicBoolean(false);
-            String imageKey = dockerPackage.getImageKey();
-
-            buildingImages.add(imageKey);
 
             dockerClient.buildImageCmd()
                     .withTags(Sets.newHashSet(imageKey))
@@ -692,13 +704,6 @@ public class NetworkManager {
 
                                 containerService.submit(() -> validateCacheRequirement(dockerPackage));
 
-                                String oldImageId = imageCache.get(imageKey);
-                                if (oldImageId != null && !oldImageId.equals(newImageId)) {
-                                    dockerClient.removeImageCmd(oldImageId)
-                                            .withForce(true)
-                                            .exec();
-                                }
-
                                 try {
                                     Files.delete(file.toPath());
                                 } catch (IOException e) {
@@ -714,6 +719,19 @@ public class NetworkManager {
                         }
                     });
         });
+    }
+
+    private void removeExistingImage(String imageKey) {
+        try {
+            dockerClient.inspectImageCmd(imageKey).exec();
+            Kardia.LOGGER.info("Removing existing image {}", imageKey);
+            dockerClient.removeImageCmd(imageKey)
+                    .withForce(true)
+                    .withNoPrune(true)
+                    .exec();
+        } catch (NotFoundException ignored) {
+
+        }
     }
 
     public synchronized void startPackage(DockerPackage pkg, Callback<String> callback) {
