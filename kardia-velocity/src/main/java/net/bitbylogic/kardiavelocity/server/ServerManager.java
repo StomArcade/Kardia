@@ -130,6 +130,13 @@ public class ServerManager {
                 .collect(Collectors.toList());
     }
 
+    public KardiaServer getServerByKardiaId(String kardiaId) {
+        return this.cachedServers.stream()
+                .filter(server -> server.kardiaId().equals(kardiaId))
+                .findFirst()
+                .orElse(null);
+    }
+
     public KardiaServer getPriorityServerByInstance(String instance) {
         List<KardiaServer> servers = getServersByInstance(instance);
         CompletableFuture<KardiaServer> priority = new CompletableFuture<>();
