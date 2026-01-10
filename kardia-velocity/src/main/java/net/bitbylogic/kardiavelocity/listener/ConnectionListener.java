@@ -8,9 +8,11 @@ import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.ServerConnection;
 import net.bitbylogic.kardia.server.KardiaServer;
+import net.bitbylogic.kardia.server.ServerType;
 import net.bitbylogic.kardiavelocity.KardiaVelocity;
 import net.bitbylogic.kardiavelocity.auth.KardiaAuth;
 import net.bitbylogic.kardiavelocity.server.player.KardiaPlayer;
+import net.bitbylogic.kardiavelocity.util.message.MessageUtil;
 import net.kyori.adventure.text.Component;
 
 import java.util.List;
@@ -84,6 +86,14 @@ public class ConnectionListener {
                 e.getPlayer().getUsername(),
                 e.getServer().getServerInfo().getName()
         ));
+
+        KardiaServer kardiaServer = KardiaVelocity.getInstance().getServerManager().getServerByKardiaId(e.getServer().getServerInfo().getName());
+
+        if (kardiaServer == null || kardiaServer.serverType() != ServerType.PAPER_GAME) {
+            return;
+        }
+
+        e.getPlayer().sendMessage(MessageUtil.error("This server is NOT running Minestom. All gameplay elements are created using the Spigot/Paper API."));
     }
 
     @Subscribe
