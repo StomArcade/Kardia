@@ -21,6 +21,14 @@ public enum ServerType {
             "",
             List.of("messages.zip", "minigames.zip")
     ),
+    PAPER_GAME(
+            "paper_game",
+            "Paper.jar",
+            new ArrayList<>(),
+            "-Xms512m -Xmx1024m -Dcom.mojang.eula.agree=true",
+            "",
+            List.of("plugins.zip")
+    ),
     PROXY(
             "proxy",
             "Velocity.jar",
